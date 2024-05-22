@@ -1,0 +1,52 @@
+How Reddit built a metadata store that supports 100k reads / second
+https://blog.quastor.org/p/reddit-built-metadata-store-handles-100k-reads-per-second?utm_source=substack&utm_medium=email
+
+
+What would you do to increase read throughput?
+1. Cache with a meaningful caching strategy?
+2. Eventual consistency / very loose consistency
+3. Shard data - Reduce the area of search
+4. read slaves 	
+
+
+
+High level HLD goals -
+1. High Read throughput
+2. Accommodate writes
+
+
+Postgres v/s Cassandra
+
+
+Postgres
+1. Battle Tested
+2. operational Confidence 
+3. Open source, community, outstanding documentation
+4. extensibility and interoperability 
+
+Cassandra 
+1. Highly Configurable - Consistency tune
+2. Very high scale - commodity hardware
+3. Wide column?
+important Note - You’ll see Cassandra described as a “Wide-Column” database. When people say that, they’re referring to the ability to use tables, rows and columns but have varying columns for each row in the same table.
+
+This is different from a Columnar database (where data in the same column is stored together on disk). Cassandra is not a column-oriented database. Here’s a great article that delves into this distinction.
+
+
+Why postgres?
+1. Difficult to manage Cassandra - Ad-hoc queries for debugging and visibility were far more difficult compared to Postgres.
+2. Data denormalization issues
+
+
+
+
+ACID db sharded for high reads
+1. Denormalization
+2. 
+
+
+
+Sharding strategy
+1. Post_id , range based partitioning
+
+
