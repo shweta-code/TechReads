@@ -1,0 +1,122 @@
+Schemaless
+
+https://www.uber.com/en-IN/blog/schemaless-part-one-mysql-datastore/
+Inspiration - https://backchannel.org/blog/friendfeed-schemaless-mysql?uclick_id=d7bddfb8-ba72-4217-9a9f-03b7652b3a07
+
+
+
+Schemaless is actually a partioned log
+
+
+Schemaless
+
+Fault tolerant
+Highly available
+
+
+
+
+Requirements
+1. Need Linear scaling - Adding more capacity by servers and reduced response times.
+2. Need Write Availability - Write Availability over read-your-write semantics
+3. Secondary indexes - Secondary indexes
+4. Ability to send notification on change
+4. Operational trust in the system, Operational expertise
+5. Fault tolerant 
+6. Mostly for append only use cases -- Immutability is a use case
+
+
+data Model
+Append only data model
+3-D persistent hash map
+cell -> row key(UUID) <JSON Blob>, column name, ref key(version key) - integer
+
+
+
+All requests are idempotent
+
+
+Architecture
+Worker nodes(receive client requests via HTTP) and then storage nodes are there(1 primary  2 secondary = storage cluster)
+storage nodes store the data. 
+Reads -Reads can happen from primary or sec configurable per request, default is mater.
+Writes - Write to master, async update to replication
+The write is considered as failed if fails to replicate
+Every request is written to 2 storage clusters, primary cluster and secondary cluster.
+first sec and then primary
+If both writes succeed then only write is considered success.
+The writes go into a special buffer table, not main table.
+Background jobs monitor if data is available in primary minions, only then it is deleted from buffer table.
+Additionally, the no. of secondary masters is configurable.
+
+Worker nodes fan out the request to storage nodes and aggregate results.
+Row key is used to locate the data
+Worker use circuit breaker pattern to know if storage node is in trouble.
+
+Fixed no. of shards ~4096, 
+Minions distributed data center
+
+
+Edge case
+1. If worker node  has failed, client will transparently try other hosts and retry failing requests. That is with client side.
+2. If primary has failed, reads will go to sec but sec may have stale data, update to sec must be subsecond latency to give you read your write consistency.
+3. If master is down for write, reads are buffered to another randomly chosen master. This is done until master is up or minion is promoted.
+
+
+Adv of having single master -
+Give order to writes
+
+Downside -
+buffered writes, read is not immediately available. This is communicated to client.
+
+
+
+
+Worker node - storage nodes(primary, secondary(minions))
+
+Name
+
+Type
+added_id	int, auto-increment
+row_key	uuid
+column_name	string
+ref_key	int
+body	blob
+created_at	datetime
+ 
+
+The added_id column is an auto-increment integer column, and it is the MySQL primary key for the entity table. Having added_id as the primary key makes MySQL write the cells linearly on disk. Furthermore, added_id serves as a unique pointer for each cell that Schemaless triggers use to efficiently extract cells in order of insertion time.
+
+The row_key, column_name, and ref_key columns contain, unsurprisingly, the row key, column name and ref key for each Schemaless cell. To efficiently look up a cell via these three, we define a compound MySQL index on these three columns. Thus, we can efficiently find all the cells for a given row key and column name.
+
+The body column contains the JSON object of the cell as a compressed MySQL blob. We experimented with various encodings and compression algorithms and ended up using MessagePack and ZLib due to the compression speed and size. (More on this in a future article.) Lastly, the created_at column is used to timestamp the cell when we insert it and is useable by Schemaless triggers to find cells after a given date.
+
+With this setup, we let the client control the schema without making changes to the layout in MySQL; we are able to look up cells efficiently. Furthermore, the added_id column makes inserts write out linearly on disk so we can efficiently access the data as a partitioned log.
+
+Triggers
+ref_key is the version id
+Whenever there is change in version_id of the column of interest
+a notification is sent.
+What if trigger has failed, retrying multiple times can cause multiple notifications.
+Triggers should be idempotent.
+If a trigger is processed a column state should be kept, if trigger for that has been processed
+
+
+Doubt -
+https://www.uber.com/en-IN/blog/schemaless-part-one-mysql-datastore/
+<Title - Indexes for Easy Access>
+This doubt should be clarified from this article - https://backchannel.org/blog/friendfeed-schemaless-mysql?uclick_id=d7bddfb8-ba72-4217-9a9f-03b7652b3a07
+Story of friendfeed
+- 250 mn entries ncluding likes, comments, friend lists
+
+General / Common ways of increasing write throughput -
+Sharding data
+
+Read throughput -
+Use indexes
+Read slaves
+Using caching
+
+But the problem is with adding new features -
+1. 10-20 mn entries , adding index would lock db for hours
+How to circumnvent  Promoting a salve and using it as a master
