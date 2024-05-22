@@ -1,0 +1,7 @@
+What is Consistent hashing?
+Very Simplified version -
+https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/architecture/archDataDistributeHashing.html
+
+
+What is linear scalability?
+Linear Scalability is liner increase with increase in scale.
