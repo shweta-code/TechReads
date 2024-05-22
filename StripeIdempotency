@@ -1,0 +1,18 @@
+Stripe Idempotency
+
+How to prevent double payments ?
+Idempotent Keys
+
+Retry even while processing?
+Idempotent Keys
+
+Retries allowed? Ways to retry?
+Exponential Back off
+
+How is the API designed? What if client doesn't respect retry-after? Doe sit block the client?
+
+What if all the clients retry at same time? How will you reduce the server load?
+https://stripe.com/blog/idempotency
+
+https://stripe.com/blog/idempotency
+
